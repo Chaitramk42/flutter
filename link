@@ -1,0 +1,182 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Reminder App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: ReminderPage(),
+    );
+  }
+}
+
+class ReminderPage extends StatefulWidget {
+  @override
+  _ReminderPageState createState() => _ReminderPageState();
+}
+
+class _ReminderPageState extends State<ReminderPage> {
+  final _days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  String _selectedDay;
+  TimeOfDay _selectedTime;
+  String _selectedActivity;
+  Timer _timer;
+
+  final _activities = [
+    'Wake up',
+    'Go to gym',
+    'Breakfast',
+    'Meetings',
+    'Lunch',
+    'Quick nap',
+    'Go to library',
+    'Dinner',
+    'Go to sleep',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = _days[DateTime.now().weekday - 1];
+    _selectedTime = TimeOfDay.now();
+    _selectedActivity = _activities[0];
+
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_selectedTime.hour == DateTime.now().hour && _selectedTime.minute == DateTime.now().minute) {
+        playSound();
+        showReminderMessage();
+        _timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  Future<void> _selectDay(BuildContext context) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: Text('Select Day'),
+          children: _days.map((day) {
+            return SimpleDialogOption(
+              child: Text(day),
+              onPressed: () => Navigator.pop(context, day),
+            );
+          }).toList(),
+        );
+      },
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedDay = result;
+      });
+    }
+  }
+
+  Future<void> _selectTime(BuildContext context) async {
+    final result = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedTime = result;
+      });
+    }
+  }
+
+  Future<void> _selectActivity(BuildContext context) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: Text('Select Activity'),
+          children: _activities.map((activity) {
+            return SimpleDialogOption(
+              child: Text(activity),
+              onPressed: () => Navigator.pop(context, activity),
+            );
+          }).toList(),
+        );
+      },
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedActivity = result;
+      });
+    }
+  }
+
+  void playSound() async {
+    final player = AudioPlayer();
+    await player.play(AssetSource('chime.mp3'));
+  }
+
+  void showReminderMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Reminder: $_selectedActivity on $_selectedDay at ${_selectedTime.format(context)}'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Reminder App'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            DropdownButton<String>(
+              value: _selectedDay,
+              onChanged: (value) => _selectDay(context),
+              items: _days.map((day) {
+                return DropdownMenuItem<String>(
+                  value: day,
+                  child: Text(day),
+                );
+              }).toList(),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => _selectTime(context),
+              child: Text(_selectedTime.format(context)),
+            ),
+            SizedBox(height: 20),
+            DropdownButton<String>(
+              value: _selectedActivity,
+              onChanged: (value) => _selectActivity(context),
+              items: _activities.map((activity) {
+                return DropdownMenuItem<String>(
+                  value: activity,
+                  child: Text(activity),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
